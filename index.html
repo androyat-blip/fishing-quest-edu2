@@ -1,0 +1,2050 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Fishing Quest Edu - Petualangan Memancing Sains</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      touch-action: none;
+      font-family: 'Nunito', sans-serif;
+      background-color: #0284c7;
+    }
+
+    .font-display {
+      font-family: 'Fredoka', sans-serif;
+    }
+
+    canvas#gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    /* Gaya tombol 3D lembut untuk layar sentuh HP dan papan IFP PID */
+    .btn-3d {
+      transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.12s ease, filter 0.15s ease;
+      box-shadow: 0 5px 0 rgba(15, 23, 42, 0.22);
+    }
+
+    .btn-3d:hover {
+      filter: brightness(1.04);
+    }
+
+    .btn-3d:active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 rgba(15, 23, 42, 0.22);
+    }
+
+    .btn-amber {
+      background: linear-gradient(180deg, #fde047 0%, #f59e0b 100%);
+      box-shadow: 0 6px 0 #b45309, 0 10px 20px rgba(180, 83, 9, 0.35);
+    }
+    .btn-amber:active {
+      box-shadow: 0 2px 0 #b45309;
+    }
+
+    .btn-sky {
+      background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+      box-shadow: 0 5px 0 #0369a1;
+    }
+    .btn-sky:active {
+      box-shadow: 0 1px 0 #0369a1;
+    }
+
+    .btn-emerald {
+      background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+      box-shadow: 0 6px 0 #065f46;
+    }
+    .btn-emerald:active {
+      box-shadow: 0 2px 0 #065f46;
+    }
+
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .animate-float {
+      animation: floatSlow 3s ease-in-out infinite;
+    }
+
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.88) translateY(16px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .animate-pop {
+      animation: popIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(14, 165, 233, 0.4);
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="relative w-full h-full overflow-hidden select-none">
+
+  <!-- Kanvas Utama Permainan -->
+  <div id="canvasWrapper" class="relative w-full h-full">
+    <canvas id="gameCanvas"></canvas>
+  </div>
+
+  <!-- HUD Atas (Skor, Progres Ikan, Musik, Suara, Jeda) -->
+  <header id="hudBar" class="hidden fixed top-0 left-0 right-0 z-20 px-3 pt-3 sm:px-6 sm:pt-4 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+    <!-- Kiri: Indikator Skor & Progres Soal -->
+    <div class="flex items-center gap-2 sm:gap-3 pointer-events-auto">
+      <div class="bg-white/95 backdrop-blur-md border-2 border-amber-400 rounded-2xl px-3.5 py-2 sm:px-5 sm:py-2.5 shadow-lg flex items-center gap-2">
+        <span class="text-xl sm:text-2xl">⭐</span>
+        <div>
+          <div class="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-amber-700 leading-none">Skor</div>
+          <div id="scoreDisplay" class="font-display text-lg sm:text-2xl font-bold text-slate-800 leading-tight">0</div>
+        </div>
+      </div>
+
+      <div class="bg-white/95 backdrop-blur-md border-2 border-sky-400 rounded-2xl px-3.5 py-2 sm:px-5 sm:py-2.5 shadow-lg flex items-center gap-2">
+        <span class="text-xl sm:text-2xl">🐠</span>
+        <div>
+          <div class="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-sky-700 leading-none">Ikan Soal</div>
+          <div id="progressDisplay" class="font-display text-lg sm:text-2xl font-bold text-slate-800 leading-tight">0 / 5</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kanan: Tombol Musik, Suara & Jeda -->
+    <div class="flex items-center gap-2 sm:gap-3 pointer-events-auto">
+      <button id="musicToggleBtn" type="button" aria-label="Musik Latar" title="Musik Latar"
+        class="btn-3d bg-white/95 hover:bg-white border-2 border-amber-300 text-slate-800 rounded-2xl p-2.5 sm:px-3.5 sm:py-2.5 shadow-lg font-extrabold text-base sm:text-lg flex items-center justify-center cursor-pointer">
+        <span id="musicIcon" class="text-xl sm:text-2xl">🎵</span>
+      </button>
+
+      <button id="soundToggleBtn" type="button" aria-label="Efek Suara & Pembaca Soal" title="Efek Suara & Pembaca Soal"
+        class="btn-3d bg-white/95 hover:bg-white border-2 border-slate-300 text-slate-800 rounded-2xl p-2.5 sm:px-3.5 sm:py-2.5 shadow-lg font-extrabold text-base sm:text-lg flex items-center justify-center cursor-pointer">
+        <span id="soundIcon" class="text-xl sm:text-2xl">🔊</span>
+      </button>
+
+      <button id="pauseBtn" type="button"
+        class="btn-3d btn-sky text-white rounded-2xl px-3.5 py-2 sm:px-5 sm:py-2.5 font-extrabold text-sm sm:text-lg flex items-center gap-1.5 cursor-pointer">
+        <span id="pauseIcon">⏸️</span>
+        <span id="pauseText">Jeda</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Petunjuk Sentuh Bawah -->
+  <div id="bottomHint" class="hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-4 w-full max-w-md text-center">
+    <div id="bottomHintText" class="inline-block bg-slate-900/65 backdrop-blur-sm text-white text-xs sm:text-sm font-bold px-4 py-1.5 rounded-full shadow">
+      👆 Sentuh &amp; geser layar ke bawah melewati garis batas untuk memancing ikan <strong>?</strong>
+    </div>
+  </div>
+
+  <!-- LAYAR AWAL (START SCREEN) -->
+  <section id="startScreen" class="fixed inset-0 z-30 flex items-center justify-center p-4 bg-sky-900/45 backdrop-blur-sm">
+    <div class="animate-pop bg-white/95 border-4 border-amber-300 rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl text-center relative overflow-hidden">
+      <div class="inline-flex items-center gap-2 bg-sky-100 text-sky-800 font-extrabold text-xs sm:text-sm px-4 py-1.5 rounded-full mb-3 border border-sky-200">
+        <span>🌊</span> Petualangan Sains SD Kelas 3 <span>🐠</span>
+      </div>
+
+      <h1 class="font-display text-3xl sm:text-5xl font-bold text-sky-700 drop-shadow-sm mb-2 animate-float">
+        🎣 Fishing Quest Edu
+      </h1>
+      <p class="text-slate-600 font-bold text-sm sm:text-base mb-5">
+        Pancing ikan misterius dan jawab kuis Metamorfosis Hewan!
+      </p>
+
+      <!-- Instruksi Singkat -->
+      <div class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-4 sm:p-5 text-left space-y-2.5 mb-6">
+        <h2 class="font-display text-base sm:text-lg font-bold text-sky-800 flex items-center gap-2">
+          <span>📋</span> Cara Bermain:
+        </h2>
+        <ul class="space-y-2 text-xs sm:text-sm md:text-base font-bold text-slate-700">
+          <li class="flex items-start gap-2.5">
+            <span class="bg-amber-400 text-slate-900 rounded-full w-6 h-6 flex items-center justify-center shrink-0 text-xs font-black mt-0.5">1</span>
+            <span><strong>Sentuh &amp; geser</strong> jari di layar untuk menurunkan kail melewati garis batas laut dan memancing <strong>5 ikan bertanda tanya (?)</strong>.</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="bg-rose-400 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 text-xs font-black mt-0.5">2</span>
+            <span>Hati-hati dengan <strong>ubur-ubur &amp; sepatu bot tua</strong> agar kail tidak terpental ke atas!</span>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <span class="bg-sky-500 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 text-xs font-black mt-0.5">3</span>
+            <span>Saat ikan tertangkap, <strong>suara otomatis membacakan soal</strong>. Jawaban benar mendapat <strong>+20 poin</strong>!</span>
+          </li>
+        </ul>
+      </div>
+
+      <button id="startBtn" type="button"
+        class="btn-3d btn-amber w-full sm:w-auto px-8 py-4 rounded-2xl font-display text-xl sm:text-2xl font-bold text-slate-900 tracking-wide cursor-pointer">
+        🚀 Mulai Memancing
+      </button>
+    </div>
+  </section>
+
+  <!-- MODAL KUIS PERTANYAAN -->
+  <section id="questionModal" class="hidden fixed inset-0 z-40 flex items-center justify-center p-3 sm:p-6 bg-slate-900/65 backdrop-blur-sm">
+    <div class="animate-pop bg-white border-4 border-sky-400 rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <!-- Header Modal -->
+      <div class="bg-gradient-to-r from-sky-500 to-cyan-500 px-5 py-3.5 sm:px-7 sm:py-4 flex items-center justify-between gap-2 text-white">
+        <div class="flex items-center gap-2.5">
+          <span class="text-2xl sm:text-3xl">🐡</span>
+          <div>
+            <div class="text-xs font-extrabold uppercase tracking-wider text-sky-100">Ikan Tertangkap!</div>
+            <h3 id="modalQuestionBadge" class="font-display text-lg sm:text-2xl font-bold leading-tight">Soal 1 dari 5</h3>
+          </div>
+        </div>
+        <button id="replaySpeechBtn" type="button" title="Bacakan ulang pertanyaan dan pilihan jawaban"
+          class="btn-3d bg-amber-400 hover:bg-amber-300 text-slate-900 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black flex items-center gap-1.5 shadow cursor-pointer shrink-0">
+          <span id="replaySpeechIcon" class="text-base sm:text-lg">🔊</span>
+          <span id="replaySpeechLabel">Bacakan Ulang Soal</span>
+        </button>
+      </div>
+
+      <!-- Isi Pertanyaan & Pilihan Jawaban -->
+      <div class="p-4 sm:p-7 overflow-y-auto custom-scroll space-y-4 sm:space-y-5">
+        <!-- Banner Panduan Tap Audio bila browser memblokir autoplay -->
+        <div id="ttsTapBanner" class="hidden bg-sky-100 border-2 border-sky-300 text-sky-900 rounded-2xl px-4 py-2.5 text-xs sm:text-sm font-extrabold">
+          💡 Ketuk tombol <strong>🔊 Bacakan Ulang Soal</strong> di atas atau ikon <strong>🔊</strong> untuk mendengar suara soal.
+        </div>
+
+        <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3.5 sm:p-5 flex items-start justify-between gap-3">
+          <p id="questionText" class="text-lg sm:text-2xl font-extrabold text-slate-800 leading-snug flex-1">
+            Pertanyaan akan muncul di sini...
+          </p>
+          <button id="speakQuestionOnlyBtn" type="button" aria-label="Dengarkan pertanyaan" title="Dengarkan pertanyaan"
+            class="btn-3d bg-amber-200 hover:bg-amber-300 text-amber-900 rounded-xl p-2.5 shrink-0 text-lg sm:text-xl cursor-pointer">
+            🔊
+          </button>
+        </div>
+
+        <!-- Daftar Pilihan A, B, C -->
+        <div id="optionsContainer" class="space-y-3"></div>
+
+        <!-- Kotak Umpan Balik Jawaban -->
+        <div id="feedbackBox" class="hidden rounded-2xl p-4 font-extrabold text-center text-base sm:text-lg border-2"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LAYAR JEDA (PAUSE SCREEN) -->
+  <section id="pauseScreen" class="hidden fixed inset-0 z-30 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div class="animate-pop bg-white border-4 border-sky-400 rounded-3xl max-w-md w-full p-7 text-center shadow-2xl space-y-5">
+      <div class="text-5xl">⏸️</div>
+      <h2 class="font-display text-3xl font-bold text-slate-800">Permainan Dijeda</h2>
+      <p class="text-slate-600 font-bold text-sm sm:text-base">
+        Istirahat sebentar, lalu lanjutkan memancing semua ikan pertanyaan!
+      </p>
+      <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+        <button id="resumeBtn" type="button"
+          class="btn-3d btn-emerald text-white font-display text-lg font-bold px-6 py-3.5 rounded-2xl flex-1 cursor-pointer">
+          ▶️ Lanjutkan
+        </button>
+        <button id="restartFromPauseBtn" type="button"
+          class="btn-3d bg-slate-200 hover:bg-slate-300 text-slate-800 font-display text-lg font-bold px-6 py-3.5 rounded-2xl flex-1 cursor-pointer">
+          🔄 Ulangi
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- LAYAR HASIL AKHIR (END SCREEN) -->
+  <section id="endScreen" class="hidden fixed inset-0 z-30 flex items-center justify-center p-4 bg-sky-950/60 backdrop-blur-sm">
+    <div class="animate-pop bg-white border-4 border-amber-400 rounded-3xl max-w-lg w-full p-6 sm:p-8 text-center shadow-2xl space-y-5">
+      <div id="endStars" class="text-4xl sm:text-5xl tracking-widest">⭐⭐⭐</div>
+      <h2 class="font-display text-3xl sm:text-4xl font-bold text-sky-700">Petualangan Selesai!</h2>
+      <p id="endMessage" class="text-slate-600 font-bold text-base sm:text-lg">
+        Hebat! Kamu berhasil memancing semua ikan soal!
+      </p>
+
+      <div class="grid grid-cols-2 gap-3 sm:gap-4 bg-sky-50 border-2 border-sky-200 rounded-2xl p-4">
+        <div class="bg-white rounded-xl p-3 shadow-sm border border-amber-200">
+          <div class="text-xs font-extrabold uppercase text-amber-700">Total Skor</div>
+          <div id="finalScoreText" class="font-display text-3xl sm:text-4xl font-bold text-amber-500">100</div>
+        </div>
+        <div class="bg-white rounded-xl p-3 shadow-sm border border-emerald-200">
+          <div class="text-xs font-extrabold uppercase text-emerald-700">Jawaban Benar</div>
+          <div id="finalCorrectText" class="font-display text-3xl sm:text-4xl font-bold text-emerald-600">5 / 5</div>
+        </div>
+      </div>
+
+      <button id="playAgainBtn" type="button"
+        class="btn-3d btn-amber w-full py-4 rounded-2xl font-display text-xl sm:text-2xl font-bold text-slate-900 cursor-pointer">
+        🎣 Main Lagi
+      </button>
+    </div>
+  </section>
+
+  <script>
+    /**
+     * ============================================================================
+     * BANK SOAL LENGKAP (100 SOAL METAMORFOSIS & PERKEMBANGBIAKAN HEWAN)
+     * ============================================================================
+     */
+    const QUESTION_BANK = [
+      // Nomor 1 - 30 (Metamorfosis & Metamorfosis Sempurna)
+      { id: 1, q: "Proses perubahan bentuk tubuh hewan disebut ....", options: ["Metamorfosis", "Fotosintesis", "Adaptasi"], answer: 0 },
+      { id: 2, q: "Hewan yang mengalami metamorfosis adalah ....", options: ["Kucing", "Kupu-kupu", "Sapi"], answer: 1 },
+      { id: 3, q: "Metamorfosis adalah proses perubahan ....", options: ["Warna makanan", "Tempat tinggal", "Bentuk tubuh hewan"], answer: 2 },
+      { id: 4, q: "Anak kucing memiliki bentuk tubuh yang ....", options: ["Mirip induknya", "Berbeda jauh dari induknya", "Sama seperti ulat"], answer: 0 },
+      { id: 5, q: "Hewan yang mengalami metamorfosis sempurna adalah ....", options: ["Ayam", "Kupu-kupu", "Kucing"], answer: 1 },
+      { id: 6, q: "Tahap pertama metamorfosis kupu-kupu adalah ....", options: ["Telur", "Ulat", "Kepompong"], answer: 0 },
+      { id: 7, q: "Telur kupu-kupu menetas menjadi ....", options: ["Katak", "Nimfa", "Ulat"], answer: 2 },
+      { id: 8, q: "Nama lain dari ulat adalah ....", options: ["Pupa", "Larva", "Nimfa"], answer: 1 },
+      { id: 9, q: "Setelah menjadi ulat, kupu-kupu memasuki tahap ....", options: ["Kepompong", "Telur", "Katak muda"], answer: 0 },
+      { id: 10, q: "Nama lain dari kepompong adalah ....", options: ["Larva", "Nimfa", "Pupa"], answer: 2 },
+      { id: 11, q: "Tahap terakhir metamorfosis kupu-kupu adalah ....", options: ["Telur", "Kupu-kupu dewasa", "Ulat"], answer: 1 },
+      { id: 12, q: "Urutan metamorfosis kupu-kupu yang benar adalah ....", options: ["Telur – ulat – kepompong – kupu-kupu", "Ulat – telur – kupu-kupu – kepompong", "Kepompong – telur – ulat – kupu-kupu"], answer: 0 },
+      { id: 13, q: "Kupu-kupu dewasa memiliki ....", options: ["Insang", "Ekor panjang", "Sayap"], answer: 2 },
+      { id: 14, q: "Ulat biasanya memakan ....", options: ["Dedaunan", "Batu", "Pasir"], answer: 0 },
+      { id: 15, q: "Kupu-kupu mencari makanan berupa ....", options: ["Rumput", "Madu bunga", "Batu"], answer: 1 },
+      { id: 16, q: "Kupu-kupu membantu bunga dalam proses ....", options: ["Berjalan", "Bernapas", "Penyerbukan"], answer: 2 },
+      { id: 17, q: "Kupu-kupu membantu menyebarkan ....", options: ["Serbuk sari", "Pasir", "Tanah"], answer: 0 },
+      { id: 18, q: "Katak mengalami metamorfosis ....", options: ["Tidak sempurna", "Sempurna", "Tidak mengalami perubahan"], answer: 1 },
+      { id: 19, q: "Katak biasanya bertelur di ....", options: ["Pohon", "Tanah kering", "Air"], answer: 2 },
+      { id: 20, q: "Telur katak menetas menjadi ....", options: ["Berudu", "Ulat", "Nimfa"], answer: 0 },
+      { id: 21, q: "Nama lain berudu adalah ....", options: ["Larva", "Kecebong", "Pupa"], answer: 1 },
+      { id: 22, q: "Berudu hidup di ....", options: ["Udara", "Pohon", "Air"], answer: 2 },
+      { id: 23, q: "Berudu bernapas menggunakan ....", options: ["Insang", "Paru-paru", "Hidung"], answer: 0 },
+      { id: 24, q: "Berudu berenang menggunakan ....", options: ["Sayap", "Ekor", "Kaki"], answer: 1 },
+      { id: 25, q: "Katak muda mulai memiliki ....", options: ["Tanduk", "Sayap", "Kaki"], answer: 2 },
+      { id: 26, q: "Saat tumbuh menjadi katak dewasa, ekor berudu akan ....", options: ["Menyusut", "Bertambah panjang", "Berubah menjadi sayap"], answer: 0 },
+      { id: 27, q: "Katak dewasa bernapas menggunakan ....", options: ["Insang saja", "Paru-paru dan kulit", "Sayap"], answer: 1 },
+      { id: 28, q: "Katak dewasa dapat bergerak dengan cara ....", options: ["Terbang", "Merayap seperti ulat", "Melompat"], answer: 2 },
+      { id: 29, q: "Metamorfosis sempurna memiliki .... tahap.", options: ["Empat", "Tiga", "Dua"], answer: 0 },
+      { id: 30, q: "Hewan yang mengalami metamorfosis sempurna adalah ....", options: ["Ayam dan kucing", "Kupu-kupu dan katak", "Sapi dan paus"], answer: 1 },
+
+      // Nomor 31 - 50 (Metamorfosis Tidak Sempurna)
+      { id: 31, q: "Metamorfosis tidak sempurna memiliki .... tahap.", options: ["Dua", "Empat", "Tiga"], answer: 2 },
+      { id: 32, q: "Tahap pertama metamorfosis tidak sempurna adalah ....", options: ["Telur", "Kepompong", "Kupu-kupu"], answer: 0 },
+      { id: 33, q: "Telur hewan yang mengalami metamorfosis tidak sempurna menetas menjadi ....", options: ["Pupa", "Nimfa", "Kepompong"], answer: 1 },
+      { id: 34, q: "Nama bayi hewan pada metamorfosis tidak sempurna adalah ....", options: ["Larva", "Pupa", "Nimfa"], answer: 2 },
+      { id: 35, q: "Tahap terakhir metamorfosis tidak sempurna adalah ....", options: ["Hewan dewasa", "Telur", "Kepompong"], answer: 0 },
+      { id: 36, q: "Metamorfosis tidak sempurna tidak melalui tahap ....", options: ["Telur", "Kepompong", "Hewan dewasa"], answer: 1 },
+      { id: 37, q: "Nimfa memiliki bentuk tubuh yang ....", options: ["Sama seperti ulat", "Berbeda jauh dari induknya", "Mirip dengan hewan dewasa"], answer: 2 },
+      { id: 38, q: "Nimfa akan mengalami pergantian ....", options: ["Kulit", "Sayap", "Ekor"], answer: 0 },
+      { id: 39, q: "Sayap nimfa akan tumbuh secara ....", options: ["Tiba-tiba hilang", "Bertahap", "Menjadi kaki"], answer: 1 },
+      { id: 40, q: "Hewan yang mengalami metamorfosis tidak sempurna adalah ....", options: ["Kupu-kupu", "Katak", "Jangkrik"], answer: 2 },
+      { id: 41, q: "Selain jangkrik, hewan yang mengalami metamorfosis tidak sempurna adalah ....", options: ["Kecoa", "Kucing", "Ayam"], answer: 0 },
+      { id: 42, q: "Bayi jangkrik disebut ....", options: ["Pupa", "Nimfa", "Berudu"], answer: 1 },
+      { id: 43, q: "Bentuk nimfa jangkrik menyerupai ....", options: ["Kupu-kupu", "Ulat", "Jangkrik dewasa"], answer: 2 },
+      { id: 44, q: "Perbedaan nimfa dan jangkrik dewasa adalah ....", options: ["Nimfa lebih kecil dan belum memiliki sayap lengkap", "Nimfa memiliki sayap lebih besar", "Nimfa memiliki empat kaki"], answer: 0 },
+      { id: 45, q: "Hewan yang tidak melalui tahap kepompong adalah ....", options: ["Kupu-kupu", "Jangkrik", "Katak"], answer: 1 },
+      { id: 46, q: "Urutan metamorfosis tidak sempurna yang benar adalah ....", options: ["Ulat – kepompong – telur", "Telur – ulat – kupu-kupu", "Telur – nimfa – dewasa"], answer: 2 },
+      { id: 47, q: "Perbedaan utama metamorfosis sempurna dan tidak sempurna terletak pada ....", options: ["Ada atau tidaknya tahap pupa", "Jumlah kaki hewan", "Warna tubuh hewan"], answer: 0 },
+      { id: 48, q: "Hewan yang memiliki tahap nimfa adalah ....", options: ["Kucing", "Kecoa", "Ayam"], answer: 1 },
+      { id: 49, q: "Nimfa akan tumbuh menjadi ....", options: ["Kepompong", "Larva", "Hewan dewasa"], answer: 2 },
+      { id: 50, q: "Metamorfosis tidak sempurna memiliki perubahan bentuk yang ....", options: ["Tidak terlalu berbeda dari bentuk dewasa", "Selalu berubah menjadi kupu-kupu", "Sangat berbeda seperti ulat dan kupu-kupu"], answer: 0 },
+
+      // Nomor 51 - 70 (Hewan Tanpa Metamorfosis)
+      { id: 51, q: "Hewan yang tidak mengalami metamorfosis disebut ....", options: ["Ametamorfosis", "Metamorfosis sempurna", "Metamorfosis tidak sempurna"], answer: 0 },
+      { id: 52, q: "Hewan tanpa metamorfosis memiliki bentuk tubuh yang ....", options: ["Berubah menjadi kupu-kupu", "Mirip dengan induknya", "Berubah menjadi ulat"], answer: 1 },
+      { id: 53, q: "Berikut ini hewan yang tidak mengalami metamorfosis adalah ....", options: ["Jangkrik", "Kupu-kupu", "Kucing"], answer: 2 },
+      { id: 54, q: "Anak ayam memiliki bentuk tubuh yang ....", options: ["Mirip induknya", "Mirip ulat", "Mirip berudu"], answer: 0 },
+      { id: 55, q: "Induk ayam mengerami telur selama kurang lebih ....", options: ["7 hari", "21 hari", "40 hari"], answer: 1 },
+      { id: 56, q: "Anak ayam yang baru menetas memiliki ....", options: ["Sayap besar", "Sisik tebal", "Bulu halus"], answer: 2 },
+      { id: 57, q: "Anak ayam mendapatkan kehangatan dari ....", options: ["Induknya", "Air hujan", "Tanah"], answer: 0 },
+      { id: 58, q: "Hewan mamalia berkembang biak dengan cara ....", options: ["Bertelur", "Melahirkan", "Membelah diri"], answer: 1 },
+      { id: 59, q: "Contoh hewan mamalia adalah ....", options: ["Kupu-kupu", "Ayam", "Paus"], answer: 2 },
+      { id: 60, q: "Bayi paus memiliki bentuk tubuh yang ....", options: ["Mirip induknya", "Mirip kecebong", "Mirip ulat"], answer: 0 },
+      { id: 61, q: "Bayi paus mendapatkan makanan dari ....", options: ["Daun", "Susu induknya", "Rumput"], answer: 1 },
+      { id: 62, q: "Hewan yang menyusui anaknya disebut ....", options: ["Serangga", "Reptil", "Mamalia"], answer: 2 },
+      { id: 63, q: "Berikut ini contoh hewan mamalia adalah ....", options: ["Sapi", "Kecoa", "Jangkrik"], answer: 0 },
+      { id: 64, q: "Kucing berkembang biak dengan cara ....", options: ["Bertelur", "Melahirkan", "Membelah diri"], answer: 1 },
+      { id: 65, q: "Hewan yang memiliki bentuk anak mirip induknya adalah ....", options: ["Kupu-kupu", "Katak", "Anjing"], answer: 2 },
+      { id: 66, q: "Anak sapi memiliki bentuk tubuh yang ....", options: ["Mirip sapi dewasa", "Mirip ulat", "Mirip kepompong"], answer: 0 },
+      { id: 67, q: "Hewan berikut yang berkembang biak dengan bertelur adalah ....", options: ["Kucing", "Ayam", "Sapi"], answer: 1 },
+      { id: 68, q: "Selain ayam, hewan yang bertelur tanpa metamorfosis adalah ....", options: ["Kupu-kupu", "Kecoa", "Ikan mas"], answer: 2 },
+      { id: 69, q: "Ular berkembang biak dengan cara ....", options: ["Bertelur", "Melahirkan", "Membelah diri"], answer: 0 },
+      { id: 70, q: "Anak ikan mas memiliki bentuk tubuh yang ....", options: ["Berbeda jauh dari induknya", "Mirip induknya", "Menyerupai ulat"], answer: 1 },
+
+      // Nomor 71 - 90 (Memahami Perbedaan Metamorfosis)
+      { id: 71, q: "Hewan yang mengalami perubahan bentuk tubuh secara drastis disebut mengalami ....", options: ["Metamorfosis", "Pernapasan", "Perkembangbiakan"], answer: 0 },
+      { id: 72, q: "Metamorfosis sempurna memiliki berapa tahap?", options: ["Dua tahap", "Tiga tahap", "Empat tahap"], answer: 2 },
+      { id: 73, q: "Metamorfosis tidak sempurna memiliki berapa tahap?", options: ["Empat tahap", "Tiga tahap", "Lima tahap"], answer: 1 },
+      { id: 74, q: "Tahap yang terdapat pada metamorfosis sempurna tetapi tidak ada pada metamorfosis tidak sempurna adalah ....", options: ["Kepompong", "Telur", "Dewasa"], answer: 0 },
+      { id: 75, q: "Hewan yang mengalami metamorfosis sempurna memiliki bentuk larva yang ....", options: ["Mirip dengan induknya", "Selalu memiliki sayap", "Berbeda dari bentuk dewasanya"], answer: 2 },
+      { id: 76, q: "Hewan yang mengalami metamorfosis tidak sempurna memiliki bentuk nimfa yang ....", options: ["Mirip hewan dewasa", "Mirip kepompong", "Mirip ulat kupu-kupu"], answer: 0 },
+      { id: 77, q: "Berikut ini pasangan hewan yang mengalami metamorfosis tidak sempurna adalah ....", options: ["Ayam dan sapi", "Kecoa dan jangkrik", "Kucing dan anjing"], answer: 1 },
+      { id: 78, q: "Berikut ini pasangan hewan yang tidak mengalami metamorfosis adalah ....", options: ["Kupu-kupu dan katak", "Kecoa dan jangkrik", "Kucing dan sapi"], answer: 2 },
+      { id: 79, q: "Tahap larva terdapat pada metamorfosis ....", options: ["Sempurna", "Tidak sempurna", "Tanpa metamorfosis"], answer: 0 },
+      { id: 80, q: "Tahap nimfa terdapat pada metamorfosis ....", options: ["Sempurna", "Tidak sempurna", "Tanpa metamorfosis"], answer: 1 },
+      { id: 81, q: "Hewan yang mengalami metamorfosis sempurna adalah ....", options: ["Kecoa", "Jangkrik", "Kupu-kupu"], answer: 2 },
+      { id: 82, q: "Jika seekor hewan melewati tahap telur, larva, pupa, dan dewasa, hewan tersebut mengalami ....", options: ["Metamorfosis sempurna", "Metamorfosis tidak sempurna", "Ametamorfosis"], answer: 0 },
+      { id: 83, q: "Jika seekor hewan melewati tahap telur, nimfa, dan dewasa, hewan tersebut mengalami ....", options: ["Metamorfosis sempurna", "Metamorfosis tidak sempurna", "Ametamorfosis"], answer: 1 },
+      { id: 84, q: "Hewan yang hanya mengalami pertambahan ukuran tubuh tanpa perubahan bentuk drastis disebut ....", options: ["Metamorfosis sempurna", "Metamorfosis tidak sempurna", "Ametamorfosis"], answer: 2 },
+      { id: 85, q: "Kelompok hewan yang memiliki tahap kepompong adalah ....", options: ["Kupu-kupu", "Kucing", "Ayam"], answer: 0 },
+      { id: 86, q: "Perubahan bentuk tubuh katak dimulai dari ....", options: ["Ulat", "Telur", "Kepompong"], answer: 1 },
+      { id: 87, q: "Hewan yang mengalami metamorfosis tidak sempurna tidak memiliki tahap ....", options: ["Nimfa", "Telur", "Pupa"], answer: 2 },
+      { id: 88, q: "Perubahan tubuh ulat menjadi kupu-kupu terjadi ketika berada dalam tahap ....", options: ["Pupa", "Telur", "Nimfa"], answer: 0 },
+      { id: 89, q: "Hewan yang mengalami metamorfosis sempurna memiliki perubahan bentuk yang ....", options: ["Sedikit", "Drastis", "Tidak ada"], answer: 1 },
+      { id: 90, q: "Tujuan perubahan bentuk pada hewan berkaitan dengan kemampuan ....", options: ["Beradaptasi dan bertahan hidup", "Mengubah warna makanan", "Membuat rumah manusia"], answer: 0 },
+
+      // Nomor 91 - 100 (Penerapan dalam Kehidupan Sehari-hari)
+      { id: 91, q: "Rina menemukan ulat di daun. Ulat tersebut nantinya dapat berubah menjadi ....", options: ["Kecoa", "Katak", "Kupu-kupu"], answer: 2 },
+      { id: 92, q: "Budi melihat hewan kecil berenang di kolam dengan ekor panjang. Hewan tersebut kemungkinan adalah ....", options: ["Berudu", "Nimfa", "Ulat"], answer: 0 },
+      { id: 93, q: "Ani menemukan kepompong yang menempel pada daun. Hewan tersebut kemungkinan akan menjadi ....", options: ["Jangkrik", "Kupu-kupu", "Kecoa"], answer: 1 },
+      { id: 94, q: "Di halaman rumah terdapat jangkrik kecil yang bentuknya mirip jangkrik dewasa. Jangkrik kecil tersebut disebut ....", options: ["Pupa", "Larva", "Nimfa"], answer: 2 },
+      { id: 95, q: "Seekor ayam melahirkan anak yang bentuknya berbeda jauh dari induknya. Pernyataan tersebut ....", options: ["Salah", "Benar", "Selalu terjadi"], answer: 0 },
+      { id: 96, q: "Seekor anak kucing tumbuh semakin besar. Peristiwa tersebut merupakan ....", options: ["Perubahan menjadi kepompong", "Metamorfosis sempurna", "Pertumbuhan"], answer: 2 },
+      { id: 97, q: "Kupu-kupu sering hinggap dari bunga ke bunga untuk mencari ....", options: ["Madu bunga", "Batu", "Pasir"], answer: 0 },
+      { id: 98, q: "Katak muda yang masih memiliki ekor akan tumbuh menjadi ....", options: ["Ulat", "Katak dewasa", "Kupu-kupu"], answer: 1 },
+      { id: 99, q: "Jika menemukan telur di dalam air yang kemudian menetas menjadi berudu, kemungkinan telur tersebut adalah telur ....", options: ["Ayam", "Kupu-kupu", "Katak"], answer: 2 },
+      { id: 100, q: "Kita perlu mempelajari kehidupan hewan agar ....", options: ["Lebih mengenal dan menjaga alam", "Takut terhadap semua hewan", "Mengganggu hewan di sekitar"], answer: 0 }
+    ];
+
+    /**
+     * ============================================================================
+     * SISTEM AUDIO & MUSIK LATAR MARIMBA/CHIPTUNE CERIA (WEB AUDIO API)
+     * ============================================================================
+     */
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+        this.musicEnabled = true;
+        this.musicPlaying = false;
+        this.musicTimer = null;
+        this.musicStep = 0;
+        this.musicMasterGain = null;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+        if (this.ctx && !this.musicMasterGain) {
+          this.musicMasterGain = this.ctx.createGain();
+          this.musicMasterGain.gain.setValueAtTime(0.16, this.ctx.currentTime);
+          this.musicMasterGain.connect(this.ctx.destination);
+        }
+      }
+
+      playMusicNote(freq, dur, isBass = false) {
+        if (this.muted || !this.musicEnabled || !this.ctx || !this.musicMasterGain) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const noteGain = this.ctx.createGain();
+
+        if (isBass) {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now);
+          osc.frequency.exponentialRampToValueAtTime(freq * 0.98, now + dur);
+
+          noteGain.gain.setValueAtTime(0.001, now);
+          noteGain.gain.linearRampToValueAtTime(0.24, now + 0.015);
+          noteGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+        } else {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+
+          const overtone = this.ctx.createOscillator();
+          const overGain = this.ctx.createGain();
+          overtone.type = 'triangle';
+          overtone.frequency.setValueAtTime(freq * 2, now);
+          overGain.gain.setValueAtTime(0.06, now);
+          overGain.gain.exponentialRampToValueAtTime(0.0005, now + dur * 0.45);
+          overtone.connect(overGain);
+          overGain.connect(this.musicMasterGain);
+          overtone.start(now);
+          overtone.stop(now + dur * 0.5);
+
+          noteGain.gain.setValueAtTime(0.001, now);
+          noteGain.gain.linearRampToValueAtTime(0.32, now + 0.01);
+          noteGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+        }
+
+        osc.connect(noteGain);
+        noteGain.connect(this.musicMasterGain);
+        osc.start(now);
+        osc.stop(now + dur + 0.02);
+      }
+
+      startMusic() {
+        this.init();
+        if (this.muted || !this.musicEnabled) return;
+        if (this.musicMasterGain && this.ctx) {
+          this.musicMasterGain.gain.setTargetAtTime(0.16, this.ctx.currentTime, 0.05);
+        }
+        if (this.musicPlaying) return;
+
+        this.musicPlaying = true;
+        const melody = [
+          523.25, 0,      659.25, 783.99, 880.00, 783.99, 659.25, 523.25,
+          587.33, 659.25, 587.33, 493.88, 523.25, 0,      392.00, 0,
+          523.25, 659.25, 783.99, 1046.5, 880.00, 783.99, 659.25, 783.99,
+          880.00, 783.99, 659.25, 587.33, 523.25, 0,      523.25, 0
+        ];
+        const bass = [
+          130.81, 0,      196.00, 0,      130.81, 0,      196.00, 0,
+          146.83, 0,      196.00, 0,      130.81, 0,      196.00, 0,
+          130.81, 0,      196.00, 0,      174.61, 0,      220.00, 0,
+          196.00, 0,      246.94, 0,      130.81, 0,      130.81, 0
+        ];
+
+        const tick = () => {
+          if (!this.musicPlaying) return;
+          if (!this.muted && this.musicEnabled && gameState === 'PLAYING') {
+            const idx = this.musicStep % melody.length;
+            if (melody[idx] > 0) this.playMusicNote(melody[idx], 0.21, false);
+            if (bass[idx] > 0) this.playMusicNote(bass[idx], 0.24, true);
+            this.musicStep++;
+          }
+          this.musicTimer = setTimeout(tick, 225);
+        };
+
+        tick();
+      }
+
+      stopMusic() {
+        this.musicPlaying = false;
+        if (this.musicTimer) {
+          clearTimeout(this.musicTimer);
+          this.musicTimer = null;
+        }
+      }
+
+      playTone(freq, type, duration, startTimeOffset = 0, gainVal = 0.18) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime + startTimeOffset;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+
+        gain.gain.setValueAtTime(gainVal, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + duration);
+      }
+
+      playCatch() {
+        this.playTone(420, 'sine', 0.12, 0, 0.2);
+        this.playTone(620, 'sine', 0.15, 0.08, 0.2);
+        this.playTone(840, 'triangle', 0.2, 0.16, 0.2);
+      }
+
+      playCorrect() {
+        this.playTone(523.25, 'triangle', 0.15, 0, 0.22);
+        this.playTone(659.25, 'triangle', 0.15, 0.1, 0.22);
+        this.playTone(783.99, 'triangle', 0.18, 0.2, 0.22);
+        this.playTone(1046.50, 'sine', 0.35, 0.3, 0.25);
+      }
+
+      playWrong() {
+        this.playTone(300, 'sawtooth', 0.2, 0, 0.14);
+        this.playTone(230, 'sawtooth', 0.32, 0.16, 0.14);
+      }
+
+      playVictory() {
+        const notes = [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5];
+        const times = [0, 0.12, 0.24, 0.36, 0.54, 0.68];
+        notes.forEach((n, i) => this.playTone(n, 'triangle', 0.25, times[i], 0.22));
+      }
+
+      playZap() {
+        this.playTone(190, 'sawtooth', 0.12, 0, 0.18);
+        this.playTone(145, 'square', 0.18, 0.08, 0.15);
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    /**
+     * ============================================================================
+     * SISTEM PEMBACA SUARA SOAL MULTI-LAPIS (WEB SPEECH API + FALLBACK AUDIO TTS)
+     * ============================================================================
+     */
+    window._ttsUtterances = [];
+
+    class QuestionReader {
+      constructor() {
+        this.synth = 'speechSynthesis' in window ? window.speechSynthesis : null;
+        this.indonesianVoice = null;
+        this.sessionToken = 0;
+        this.resumeTimer = null;
+        this.watchdogTimer = null;
+        this.currentAudio = null;
+        this.preferAudioFallback = false;
+
+        if (this.synth) {
+          this.loadVoices();
+          if (typeof this.synth.onvoiceschanged !== 'undefined') {
+            this.synth.onvoiceschanged = () => this.loadVoices();
+          }
+          setTimeout(() => this.loadVoices(), 400);
+          setTimeout(() => this.loadVoices(), 1400);
+        }
+      }
+
+      loadVoices() {
+        if (!this.synth) return;
+        const voices = this.synth.getVoices() || [];
+        if (!voices.length) return;
+
+        this.indonesianVoice =
+          voices.find((v) => v.lang && v.lang.toLowerCase() === 'id-id' && v.localService) ||
+          voices.find((v) => v.lang && v.lang.toLowerCase() === 'id-id') ||
+          voices.find((v) => v.lang && (v.lang.toLowerCase().startsWith('id') || v.lang.toLowerCase().startsWith('in'))) ||
+          voices.find((v) => v.name && v.name.toLowerCase().includes('indonesia')) ||
+          null;
+      }
+
+      unlock() {
+        if (!this.synth) return;
+        this.loadVoices();
+        try {
+          if (this.synth.paused) {
+            this.synth.resume();
+          }
+        } catch (e) {}
+      }
+
+      showTapBanner(show) {
+        const banner = document.getElementById('ttsTapBanner');
+        if (!banner) return;
+        if (show) {
+          banner.classList.remove('hidden');
+        } else {
+          banner.classList.add('hidden');
+        }
+      }
+
+      setVisualSpeakingState(active) {
+        const btn = document.getElementById('replaySpeechBtn');
+        const icon = document.getElementById('replaySpeechIcon');
+        const label = document.getElementById('replaySpeechLabel');
+        if (!btn || !icon || !label) return;
+
+        if (active) {
+          btn.classList.add('ring-4', 'ring-white/80', 'animate-pulse');
+          icon.textContent = '🗣️';
+          label.textContent = 'Membacakan...';
+        } else {
+          btn.classList.remove('ring-4', 'ring-white/80', 'animate-pulse');
+          icon.textContent = '🔊';
+          label.textContent = 'Bacakan Ulang Soal';
+        }
+      }
+
+      clearTimers() {
+        if (this.resumeTimer) {
+          clearInterval(this.resumeTimer);
+          this.resumeTimer = null;
+        }
+        if (this.watchdogTimer) {
+          clearTimeout(this.watchdogTimer);
+          this.watchdogTimer = null;
+        }
+      }
+
+      stop() {
+        this.sessionToken++;
+        this.clearTimers();
+        this.setVisualSpeakingState(false);
+
+        if (this.currentAudio) {
+          try {
+            this.currentAudio.pause();
+            this.currentAudio.src = '';
+          } catch (e) {}
+          this.currentAudio = null;
+        }
+
+        if (this.synth && (this.synth.speaking || this.synth.pending)) {
+          try {
+            this.synth.cancel();
+          } catch (e) {}
+        }
+        window._ttsUtterances = [];
+      }
+
+      cleanTextForSpeech(rawText) {
+        return rawText
+          .replace(/\.{2,}/g, ' titik titik ')
+          .replace(/[–—]/g, ', lalu ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+
+      buildQuestionSpeechText(qObj) {
+        const letters = ['A', 'B', 'C'];
+        const qClean = this.cleanTextForSpeech(qObj.q);
+        const optsClean = qObj.options
+          .map((opt, idx) => `Pilihan ${letters[idx]}. ${this.cleanTextForSpeech(opt)}`)
+          .join('. ');
+        return `${qClean}. ${optsClean}`;
+      }
+
+      speakWithAudioFallback(fullText, token, isUserGesture = false) {
+        if (token !== this.sessionToken || sound.muted) return;
+
+        const cleaned = this.cleanTextForSpeech(fullText);
+        const rawSentences = cleaned.split(/(?<=[.?!])\s+/);
+        const chunks = [];
+        let currentChunk = '';
+
+        rawSentences.forEach((sentence) => {
+          if (!sentence) return;
+          if ((currentChunk + ' ' + sentence).trim().length <= 175) {
+            currentChunk = (currentChunk + ' ' + sentence).trim();
+          } else {
+            if (currentChunk) chunks.push(currentChunk);
+            currentChunk = sentence.slice(0, 175);
+          }
+        });
+        if (currentChunk) chunks.push(currentChunk);
+
+        let chunkIdx = 0;
+        const playNextChunk = () => {
+          if (token !== this.sessionToken || sound.muted) return;
+          if (chunkIdx >= chunks.length) {
+            this.setVisualSpeakingState(false);
+            return;
+          }
+
+          const query = encodeURIComponent(chunks[chunkIdx]);
+          const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=id&client=tw-ob&q=${query}`;
+          const audio = new Audio(url);
+          this.currentAudio = audio;
+
+          audio.onplay = () => {
+            if (token === this.sessionToken) {
+              this.showTapBanner(false);
+              this.setVisualSpeakingState(true);
+            }
+          };
+
+          audio.onended = () => {
+            if (token === this.sessionToken) {
+              chunkIdx++;
+              playNextChunk();
+            }
+          };
+
+          audio.onerror = () => {
+            if (token === this.sessionToken) {
+              this.setVisualSpeakingState(false);
+              if (!isUserGesture) {
+                this.showTapBanner(true);
+              }
+            }
+          };
+
+          const playPromise = audio.play();
+          if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(() => {
+              if (token === this.sessionToken) {
+                this.setVisualSpeakingState(false);
+                this.showTapBanner(true);
+              }
+            });
+          }
+        };
+
+        playNextChunk();
+      }
+
+      speakText(rawText, isUserGesture = false) {
+        if (sound.muted) return;
+
+        const wasActive = this.synth && (this.synth.speaking || this.synth.pending);
+        this.stop();
+        const token = this.sessionToken;
+        const textToSpeak = this.cleanTextForSpeech(rawText);
+
+        if (!this.synth || this.preferAudioFallback) {
+          this.speakWithAudioFallback(textToSpeak, token, isUserGesture);
+          return;
+        }
+
+        const executeWebSpeech = () => {
+          if (token !== this.sessionToken || sound.muted) return;
+          this.loadVoices();
+
+          try {
+            if (this.synth.paused) {
+              this.synth.resume();
+            }
+
+            const utter = new SpeechSynthesisUtterance(textToSpeak);
+            utter.lang = 'id-ID';
+            if (this.indonesianVoice) {
+              utter.voice = this.indonesianVoice;
+            }
+            utter.rate = 0.92;
+            utter.pitch = 1.03;
+            utter.volume = 1.0;
+
+            window._ttsUtterances.push(utter);
+            let hasStarted = false;
+
+            this.watchdogTimer = setTimeout(() => {
+              if (!hasStarted && token === this.sessionToken && !sound.muted) {
+                this.preferAudioFallback = true;
+                try {
+                  if (this.synth.speaking || this.synth.pending) {
+                    this.synth.cancel();
+                  }
+                } catch (e) {}
+                this.speakWithAudioFallback(textToSpeak, token, isUserGesture);
+              }
+            }, 1200);
+
+            utter.onstart = () => {
+              hasStarted = true;
+              if (this.watchdogTimer) {
+                clearTimeout(this.watchdogTimer);
+                this.watchdogTimer = null;
+              }
+              if (token === this.sessionToken) {
+                this.showTapBanner(false);
+                this.setVisualSpeakingState(true);
+                this.resumeTimer = setInterval(() => {
+                  if (this.synth && this.synth.speaking) {
+                    try {
+                      this.synth.resume();
+                    } catch (e) {}
+                  }
+                }, 300);
+              }
+            };
+
+            utter.onend = () => {
+              if (token === this.sessionToken) {
+                this.clearTimers();
+                this.setVisualSpeakingState(false);
+              }
+            };
+
+            utter.onerror = () => {
+              if (token === this.sessionToken) {
+                this.clearTimers();
+                if (!hasStarted) {
+                  this.preferAudioFallback = true;
+                  this.speakWithAudioFallback(textToSpeak, token, isUserGesture);
+                } else {
+                  this.setVisualSpeakingState(false);
+                }
+              }
+            };
+
+            this.synth.speak(utter);
+          } catch (e) {
+            this.clearTimers();
+            this.preferAudioFallback = true;
+            this.speakWithAudioFallback(textToSpeak, token, isUserGesture);
+          }
+        };
+
+        if (wasActive) {
+          setTimeout(executeWebSpeech, 260);
+        } else {
+          executeWebSpeech();
+        }
+      }
+
+      speakSingle(text, isUserGesture = true) {
+        this.speakText(text, isUserGesture);
+      }
+
+      speakFullQuestion(qObj, isUserGesture = false) {
+        const fullText = this.buildQuestionSpeechText(qObj);
+        this.speakText(fullText, isUserGesture);
+      }
+    }
+
+    const reader = new QuestionReader();
+
+    /**
+     * ============================================================================
+     * PEMILIHAN SOAL ACAK BERDASARKAN RENTANG SESI (5 SOAL)
+     * ============================================================================
+     */
+    function pickRandomFromRange(minId, maxId) {
+      const pool = QUESTION_BANK.filter((item) => item.id >= minId && item.id <= maxId);
+      const randomIndex = Math.floor(Math.random() * pool.length);
+      return pool[randomIndex];
+    }
+
+    function generateSessionQuestions() {
+      return [
+        pickRandomFromRange(1, 30),   // Soal ke-1: no. 1 - 30
+        pickRandomFromRange(31, 50),  // Soal ke-2: no. 31 - 50
+        pickRandomFromRange(51, 70),  // Soal ke-3: no. 51 - 70
+        pickRandomFromRange(71, 90),  // Soal ke-4: no. 71 - 90
+        pickRandomFromRange(91, 100)  // Soal ke-5: no. 91 - 100
+      ];
+    }
+
+    /**
+     * ============================================================================
+     * VARIABEL KANVAS & STATUS PERMAINAN
+     * ============================================================================
+     */
+    const canvasWrapper = document.getElementById('canvasWrapper');
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let canvasWidth = window.innerWidth || 960;
+    let canvasHeight = window.innerHeight || 640;
+    let waterSurfaceY = canvasHeight * 0.24;
+
+    // Status permainan: 'START', 'PLAYING', 'QUESTION', 'PAUSED', 'ENDED'
+    let gameState = 'START';
+    let score = 0;
+    let correctAnswersCount = 0;
+    let currentQuestionIndex = 0;
+    let sessionQuestions = [];
+    let isAnsweringLocked = false;
+    let playStartTimestamp = 0;
+    let hookStunUntil = 0;
+
+    // Objek Perahu & Kail Pancing
+    const boat = {
+      x: canvasWidth * 0.5,
+      y: waterSurfaceY,
+      targetX: canvasWidth * 0.5,
+      bobPhase: 0
+    };
+
+    const hook = {
+      x: canvasWidth * 0.5,
+      y: waterSurfaceY + 26,
+      targetX: canvasWidth * 0.5,
+      targetY: waterSurfaceY + 26,
+      radius: 20
+    };
+
+    // Elemen Lingkungan Laut
+    let clouds = [];
+    let bubbles = [];
+    let seaweeds = [];
+    let bgFishes = [];
+    let questionFishes = [];
+    let seaObstacles = [];
+    let particles = [];
+
+    const FISH_PALETTES = [
+      { body: '#fb923c', belly: '#fed7aa', fin: '#ea580c' }, // Ikan Badut Oranye
+      { body: '#38bdf8', belly: '#bae6fd', fin: '#0284c7' }, // Ikan Dori Biru
+      { body: '#facc15', belly: '#fef08a', fin: '#ca8a04' }, // Ikan Tang Kuning
+      { body: '#f472b6', belly: '#fbcfe8', fin: '#db2777' }, // Ikan Karang Merah Muda
+      { body: '#34d399', belly: '#a7f3d0', fin: '#059669' }  // Ikan Zamrud Hijau
+    ];
+
+    /**
+     * ============================================================================
+     * INISIALISASI & PENYESUAIAN UKURAN KANVAS RESPONSIF (HP & IFP PID)
+     * ============================================================================
+     */
+    function resizeCanvas() {
+      const rect = canvasWrapper.getBoundingClientRect();
+      const prevWidth = canvasWidth || window.innerWidth || 960;
+      const prevHeight = canvasHeight || window.innerHeight || 640;
+
+      const measuredW = rect.width > 50 ? rect.width : (window.innerWidth || document.documentElement.clientWidth || 960);
+      const measuredH = rect.height > 50 ? rect.height : (window.innerHeight || document.documentElement.clientHeight || 640);
+
+      canvasWidth = Math.round(measuredW);
+      canvasHeight = Math.round(measuredH);
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+
+      waterSurfaceY = Math.max(115, canvasHeight * 0.24);
+
+      const scaleX = canvasWidth / prevWidth;
+      const scaleY = canvasHeight / prevHeight;
+
+      boat.x = Math.min(Math.max(boat.x * scaleX, 70), canvasWidth - 70);
+      boat.targetX = Math.min(Math.max(boat.targetX * scaleX, 70), canvasWidth - 70);
+      boat.y = waterSurfaceY;
+
+      hook.x = Math.min(Math.max(hook.x * scaleX, 30), canvasWidth - 30);
+      hook.targetX = Math.min(Math.max(hook.targetX * scaleX, 30), canvasWidth - 30);
+      hook.y = Math.min(Math.max(hook.y * scaleY, waterSurfaceY + 26), canvasHeight - 40);
+      hook.targetY = Math.min(Math.max(hook.targetY * scaleY, waterSurfaceY + 26), canvasHeight - 40);
+
+      questionFishes.forEach((f) => {
+        f.x = Math.min(Math.max(f.x * scaleX, 60), canvasWidth - 60);
+        f.baseY = Math.min(Math.max(f.baseY * scaleY, waterSurfaceY + (canvasHeight - waterSurfaceY) * 0.42), canvasHeight - 75);
+      });
+
+      seaObstacles.forEach((obs) => {
+        obs.x = Math.min(Math.max(obs.x * scaleX, 50), canvasWidth - 50);
+        obs.baseY = Math.min(Math.max(obs.baseY * scaleY, waterSurfaceY + (canvasHeight - waterSurfaceY) * 0.28), canvasHeight - 85);
+      });
+
+      initDecorations();
+    }
+
+    function initDecorations() {
+      clouds = Array.from({ length: 5 }, (_, i) => ({
+        x: (canvasWidth / 5) * i + Math.random() * 80,
+        y: 35 + Math.random() * (waterSurfaceY * 0.42),
+        scale: 0.7 + Math.random() * 0.55,
+        speed: 0.14 + Math.random() * 0.18
+      }));
+
+      bubbles = Array.from({ length: 24 }, () => ({
+        x: Math.random() * canvasWidth,
+        y: waterSurfaceY + Math.random() * (canvasHeight - waterSurfaceY),
+        r: 3 + Math.random() * 6,
+        speed: 0.45 + Math.random() * 0.85,
+        wobble: Math.random() * Math.PI * 2
+      }));
+
+      const weedCount = Math.max(8, Math.floor(canvasWidth / 95));
+      seaweeds = Array.from({ length: weedCount }, (_, i) => ({
+        x: (canvasWidth / weedCount) * i + 25 + Math.random() * 30,
+        height: 45 + Math.random() * 55,
+        phase: Math.random() * Math.PI * 2,
+        color: i % 2 === 0 ? '#10b981' : '#059669'
+      }));
+
+      bgFishes = Array.from({ length: 8 }, () => ({
+        x: Math.random() * canvasWidth,
+        y: waterSurfaceY + 45 + Math.random() * (canvasHeight - waterSurfaceY - 95),
+        size: 10 + Math.random() * 9,
+        speed: (0.35 + Math.random() * 0.5) * (Math.random() < 0.5 ? 1 : -1),
+        color: ['rgba(255,255,255,0.22)', 'rgba(186,230,253,0.25)', 'rgba(253,224,71,0.2)'][Math.floor(Math.random() * 3)]
+      }));
+    }
+
+    function spawnQuestionFishes(count = 5) {
+      questionFishes = [];
+      const minDepth = waterSurfaceY + (canvasHeight - waterSurfaceY) * 0.44;
+      const maxDepth = canvasHeight - 75;
+      const availableHeight = Math.max(100, maxDepth - minDepth);
+      const bandHeight = availableHeight / count;
+
+      for (let i = 0; i < count; i++) {
+        const dir = i % 2 === 0 ? 1 : -1;
+        const sizeScale = Math.min(1.18, Math.max(0.85, canvasWidth / 900));
+        const baseSpeed = (0.75 + Math.random() * 0.45) * (canvasWidth / 950 + 0.55);
+        questionFishes.push({
+          id: i,
+          x: 85 + Math.random() * Math.max(120, canvasWidth - 170),
+          baseY: minDepth + bandHeight * i + bandHeight * 0.5,
+          y: minDepth + bandHeight * i + bandHeight * 0.5,
+          vx: baseSpeed * dir,
+          baseSpeed: baseSpeed,
+          radius: 36 * sizeScale,
+          scale: sizeScale,
+          tailPhase: Math.random() * Math.PI * 2,
+          bobPhase: Math.random() * Math.PI * 2,
+          bobAmp: 12 + Math.random() * 10,
+          bobFreq: 0.02 + Math.random() * 0.012,
+          palette: FISH_PALETTES[i % FISH_PALETTES.length],
+          caught: false
+        });
+      }
+    }
+
+    function spawnSeaObstacles() {
+      seaObstacles = [];
+      const count = canvasWidth > 768 ? 3 : 2;
+      const minDepth = waterSurfaceY + (canvasHeight - waterSurfaceY) * 0.30;
+      const maxDepth = canvasHeight - 85;
+      const band = Math.max(80, (maxDepth - minDepth) / count);
+
+      for (let i = 0; i < count; i++) {
+        const isJelly = i % 2 === 0;
+        const dir = i % 2 === 0 ? -1 : 1;
+        seaObstacles.push({
+          type: isJelly ? 'jellyfish' : 'boot',
+          x: 90 + Math.random() * Math.max(120, canvasWidth - 180),
+          baseY: minDepth + band * i + band * 0.5,
+          y: minDepth + band * i + band * 0.5,
+          vx: (0.55 + Math.random() * 0.35) * dir,
+          phase: Math.random() * Math.PI * 2,
+          radius: 26
+        });
+      }
+    }
+
+    function spawnSplashParticles(x, y, color = '#ffffff', count = 16) {
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+        const speed = 1.5 + Math.random() * 3.5;
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1.2,
+          r: 3 + Math.random() * 4,
+          alpha: 1,
+          color
+        });
+      }
+    }
+
+    /**
+     * ============================================================================
+     * KONTROL SENTUH & MOUSE (RESPONSIF DI HP & IFP PID)
+     * ============================================================================
+     */
+    let isPointerDown = false;
+
+    function updateHookTargetFromClient(clientX, clientY) {
+      if (gameState !== 'PLAYING') return;
+      if (performance.now() < hookStunUntil) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const relX = clientX - rect.left;
+      const relY = clientY - rect.top;
+
+      const minX = 36;
+      const maxX = canvasWidth - 36;
+      const minY = waterSurfaceY + 26;
+      const maxY = canvasHeight - 36;
+
+      hook.targetX = Math.min(Math.max(relX, minX), maxX);
+      hook.targetY = Math.min(Math.max(relY, minY), maxY);
+      boat.targetX = Math.min(Math.max(relX, 75), canvasWidth - 75);
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+      if (gameState !== 'PLAYING') return;
+      isPointerDown = true;
+      updateHookTargetFromClient(e.clientX, e.clientY);
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (gameState !== 'PLAYING') return;
+      if (isPointerDown || e.pointerType === 'mouse') {
+        updateHookTargetFromClient(e.clientX, e.clientY);
+      }
+    });
+
+    window.addEventListener('pointerup', () => {
+      isPointerDown = false;
+    });
+
+    /**
+     * ============================================================================
+     * ALUR PERMAINAN, KUIS & PEMBACAAN SUARA
+     * ============================================================================
+     */
+    const startScreen = document.getElementById('startScreen');
+    const questionModal = document.getElementById('questionModal');
+    const pauseScreen = document.getElementById('pauseScreen');
+    const endScreen = document.getElementById('endScreen');
+    const hudBar = document.getElementById('hudBar');
+    const bottomHint = document.getElementById('bottomHint');
+    const bottomHintText = document.getElementById('bottomHintText');
+
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const progressDisplay = document.getElementById('progressDisplay');
+    const modalQuestionBadge = document.getElementById('modalQuestionBadge');
+    const questionText = document.getElementById('questionText');
+    const optionsContainer = document.getElementById('optionsContainer');
+    const feedbackBox = document.getElementById('feedbackBox');
+
+    function startNewGame() {
+      sound.init();
+      reader.unlock();
+
+      score = 0;
+      correctAnswersCount = 0;
+      currentQuestionIndex = 0;
+      sessionQuestions = generateSessionQuestions();
+      isAnsweringLocked = false;
+      hookStunUntil = 0;
+      playStartTimestamp = performance.now();
+
+      startScreen.classList.add('hidden');
+      endScreen.classList.add('hidden');
+      pauseScreen.classList.add('hidden');
+      questionModal.classList.add('hidden');
+
+      hudBar.classList.remove('hidden');
+      bottomHint.classList.remove('hidden');
+
+      resizeCanvas();
+
+      boat.x = canvasWidth * 0.5;
+      boat.targetX = canvasWidth * 0.5;
+      hook.x = canvasWidth * 0.5;
+      hook.targetX = canvasWidth * 0.5;
+      hook.y = waterSurfaceY + 26;
+      hook.targetY = waterSurfaceY + 26;
+
+      spawnQuestionFishes(5);
+      spawnSeaObstacles();
+      updateHUD();
+
+      gameState = 'PLAYING';
+      sound.startMusic();
+    }
+
+    function updateHUD() {
+      scoreDisplay.textContent = score;
+      progressDisplay.textContent = `${currentQuestionIndex} / 5`;
+    }
+
+    function togglePause() {
+      if (gameState === 'PLAYING') {
+        gameState = 'PAUSED';
+        sound.stopMusic();
+        reader.stop();
+        pauseScreen.classList.remove('hidden');
+      } else if (gameState === 'PAUSED') {
+        gameState = 'PLAYING';
+        pauseScreen.classList.add('hidden');
+        sound.startMusic();
+      }
+    }
+
+    function onFishCaught(fish) {
+      fish.caught = true;
+      sound.stopMusic();
+      sound.playCatch();
+      spawnSplashParticles(fish.x, fish.y, '#fde047', 20);
+
+      gameState = 'QUESTION';
+      isPointerDown = false;
+      openQuestionModal(sessionQuestions[currentQuestionIndex]);
+    }
+
+    function openQuestionModal(qObj) {
+      isAnsweringLocked = false;
+      reader.showTapBanner(false);
+      feedbackBox.classList.add('hidden');
+      feedbackBox.className = 'hidden rounded-2xl p-4 font-extrabold text-center text-base sm:text-lg border-2';
+
+      modalQuestionBadge.textContent = `Soal ${currentQuestionIndex + 1} dari 5`;
+      questionText.textContent = qObj.q;
+
+      const replayBtn = document.getElementById('replaySpeechBtn');
+      const speakQBtn = document.getElementById('speakQuestionOnlyBtn');
+      replayBtn.onclick = () => {
+        sound.init();
+        reader.speakFullQuestion(qObj, true);
+      };
+      speakQBtn.onclick = () => {
+        sound.init();
+        reader.speakSingle(qObj.q, true);
+      };
+
+      const letters = ['A', 'B', 'C'];
+      optionsContainer.innerHTML = '';
+
+      qObj.options.forEach((optText, idx) => {
+        const rowWrapper = document.createElement('div');
+        rowWrapper.className = 'flex items-stretch gap-2';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.dataset.index = idx;
+        btn.className =
+          'option-btn btn-3d flex-1 text-left bg-sky-50 hover:bg-sky-100 border-2 border-sky-300 rounded-2xl p-3.5 sm:p-4 flex items-center gap-3.5 text-slate-800 font-extrabold text-base sm:text-xl transition-colors cursor-pointer';
+
+        btn.innerHTML = `
+          <span class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-sky-500 text-white font-display font-bold flex items-center justify-center shrink-0 text-lg sm:text-xl shadow-sm">
+            ${letters[idx]}
+          </span>
+          <span class="leading-snug">${optText}</span>
+        `;
+
+        btn.addEventListener('click', () => handleAnswerSelect(idx));
+
+        const optSpeakBtn = document.createElement('button');
+        optSpeakBtn.type = 'button';
+        optSpeakBtn.ariaLabel = `Dengarkan pilihan ${letters[idx]}`;
+        optSpeakBtn.title = `Dengarkan pilihan ${letters[idx]}`;
+        optSpeakBtn.className =
+          'btn-3d bg-sky-100 hover:bg-sky-200 border-2 border-sky-300 text-sky-900 rounded-2xl px-3.5 sm:px-4 flex items-center justify-center text-lg sm:text-xl shrink-0 cursor-pointer';
+        optSpeakBtn.textContent = '🔊';
+        optSpeakBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          sound.init();
+          reader.speakSingle(`Pilihan ${letters[idx]}. ${optText}`, true);
+        });
+
+        rowWrapper.appendChild(btn);
+        rowWrapper.appendChild(optSpeakBtn);
+        optionsContainer.appendChild(rowWrapper);
+      });
+
+      questionModal.classList.remove('hidden');
+
+      setTimeout(() => {
+        if (gameState === 'QUESTION') {
+          reader.speakFullQuestion(qObj, false);
+        }
+      }, 280);
+    }
+
+    function handleAnswerSelect(selectedIndex) {
+      if (isAnsweringLocked) return;
+      isAnsweringLocked = true;
+      reader.stop();
+
+      const qObj = sessionQuestions[currentQuestionIndex];
+      const isCorrect = selectedIndex === qObj.answer;
+      const optionButtons = optionsContainer.querySelectorAll('.option-btn');
+      const letters = ['A', 'B', 'C'];
+
+      optionButtons.forEach((btn, idx) => {
+        btn.disabled = true;
+        btn.classList.remove('hover:bg-sky-100', 'bg-sky-50', 'border-sky-300');
+
+        if (idx === qObj.answer) {
+          btn.classList.add('bg-emerald-100', 'border-emerald-500', 'text-emerald-950');
+        } else if (idx === selectedIndex && !isCorrect) {
+          btn.classList.add('bg-rose-100', 'border-rose-500', 'text-rose-950');
+        } else {
+          btn.classList.add('bg-slate-100', 'border-slate-200', 'opacity-65');
+        }
+      });
+
+      feedbackBox.classList.remove('hidden');
+      if (isCorrect) {
+        score += 20;
+        correctAnswersCount++;
+        sound.playCorrect();
+        feedbackBox.classList.add('bg-emerald-100', 'border-emerald-400', 'text-emerald-900');
+        feedbackBox.innerHTML = '🎉 Hebat! Jawaban kamu BENAR! (+20 Poin)';
+      } else {
+        sound.playWrong();
+        feedbackBox.classList.add('bg-rose-100', 'border-rose-400', 'text-rose-900');
+        feedbackBox.innerHTML = `💡 Kurang tepat. Jawaban benar: <strong>${letters[qObj.answer]}. ${qObj.options[qObj.answer]}</strong> (0 Poin)`;
+      }
+
+      currentQuestionIndex++;
+      updateHUD();
+
+      setTimeout(() => {
+        reader.stop();
+        questionModal.classList.add('hidden');
+        if (currentQuestionIndex >= 5) {
+          showFinalResults();
+        } else {
+          hook.targetY = waterSurfaceY + 26;
+          playStartTimestamp = performance.now();
+          gameState = 'PLAYING';
+          sound.startMusic();
+        }
+      }, 1750);
+    }
+
+    function showFinalResults() {
+      gameState = 'ENDED';
+      sound.stopMusic();
+      reader.stop();
+      hudBar.classList.add('hidden');
+      bottomHint.classList.add('hidden');
+      sound.playVictory();
+
+      document.getElementById('finalScoreText').textContent = score;
+      document.getElementById('finalCorrectText').textContent = `${correctAnswersCount} / 5`;
+
+      const endStars = document.getElementById('endStars');
+      const endMessage = document.getElementById('endMessage');
+
+      if (score === 100) {
+        endStars.textContent = '⭐⭐⭐';
+        endMessage.textContent = 'Luar biasa! Nilai sempurna! Kamu ahli metamorfosis sejati!';
+      } else if (score >= 60) {
+        endStars.textContent = '⭐⭐';
+        endMessage.textContent = 'Bagus sekali! Terus belajar mengenal kehidupan hewan ya!';
+      } else {
+        endStars.textContent = '⭐';
+        endMessage.textContent = 'Tetap semangat! Ayo coba memancing lagi agar skormu makin tinggi!';
+      }
+
+      endScreen.classList.remove('hidden');
+    }
+
+    // Event listener tombol navigasi
+    document.getElementById('startBtn').addEventListener('click', startNewGame);
+    document.getElementById('pauseBtn').addEventListener('click', togglePause);
+    document.getElementById('resumeBtn').addEventListener('click', togglePause);
+    document.getElementById('restartFromPauseBtn').addEventListener('click', startNewGame);
+    document.getElementById('playAgainBtn').addEventListener('click', startNewGame);
+
+    document.getElementById('musicToggleBtn').addEventListener('click', () => {
+      sound.init();
+      sound.musicEnabled = !sound.musicEnabled;
+      const musicIcon = document.getElementById('musicIcon');
+      const musicBtn = document.getElementById('musicToggleBtn');
+      if (sound.musicEnabled && !sound.muted) {
+        musicIcon.textContent = '🎵';
+        musicBtn.classList.remove('opacity-60');
+        if (gameState === 'PLAYING') sound.startMusic();
+      } else {
+        musicIcon.textContent = '🔇';
+        musicBtn.classList.add('opacity-60');
+        sound.stopMusic();
+      }
+    });
+
+    document.getElementById('soundToggleBtn').addEventListener('click', () => {
+      sound.muted = !sound.muted;
+      document.getElementById('soundIcon').textContent = sound.muted ? '🔇' : '🔊';
+      if (sound.muted) {
+        sound.stopMusic();
+        reader.stop();
+      } else {
+        sound.init();
+        sound.playTone(600, 'sine', 0.1, 0, 0.15);
+        if (gameState === 'PLAYING' && sound.musicEnabled) {
+          sound.startMusic();
+        }
+      }
+    });
+
+    /**
+     * ============================================================================
+     * PEMBARUAN LOGIKA & RENDERING ILUSTRASI LAUT CERIA (60 FPS)
+     * ============================================================================
+     */
+    let timeTick = 0;
+
+    function update() {
+      timeTick += 0.03;
+
+      // Awan bergerak pelan
+      clouds.forEach((c) => {
+        c.x += c.speed;
+        if (c.x > canvasWidth + 120) c.x = -120;
+      });
+
+      // Gelembung udara naik
+      bubbles.forEach((b) => {
+        b.y -= b.speed;
+        b.x += Math.sin(timeTick * 1.4 + b.wobble) * 0.35;
+        if (b.y < waterSurfaceY + 8) {
+          b.y = canvasHeight - 18;
+          b.x = Math.random() * canvasWidth;
+        }
+      });
+
+      // Ikan hias latar
+      bgFishes.forEach((bf) => {
+        bf.x += bf.speed;
+        if (bf.speed > 0 && bf.x > canvasWidth + 40) bf.x = -40;
+        if (bf.speed < 0 && bf.x < -40) bf.x = canvasWidth + 40;
+      });
+
+      // Partikel percikan
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.08;
+        p.alpha -= 0.028;
+        if (p.alpha <= 0) particles.splice(i, 1);
+      }
+
+      if (gameState !== 'PLAYING') return;
+
+      const now = performance.now();
+      const isStunned = now < hookStunUntil;
+
+      // Gerakan perahu & kail mulus
+      boat.bobPhase += 0.06;
+      boat.x += (boat.targetX - boat.x) * 0.09;
+      boat.y = waterSurfaceY + Math.sin(boat.bobPhase) * 3.5;
+
+      if (isStunned) {
+        hook.targetY = waterSurfaceY + 26;
+        hook.x += (hook.targetX - hook.x) * 0.1;
+        hook.y += (hook.targetY - hook.y) * 0.18;
+      } else {
+        hook.x += (hook.targetX - hook.x) * 0.14;
+        hook.y += (hook.targetY - hook.y) * 0.14;
+      }
+
+      const fishingLineThresholdY = waterSurfaceY + (canvasHeight - waterSurfaceY) * 0.33;
+      const isReadyDelayOver = (now - playStartTimestamp) > 1200;
+      const isHookDeepEnough = hook.y >= fishingLineThresholdY;
+      const canCatchNow = !isStunned && isReadyDelayOver && isHookDeepEnough;
+
+      if (bottomHintText) {
+        if (isStunned) {
+          bottomHintText.innerHTML = '⚡ Ups, kail menyentuh rintangan! Turunkan kail lagi ya!';
+        } else if (!isReadyDelayOver) {
+          bottomHintText.innerHTML = '🎣 Siapkan kailmu dan arahkan ke kedalaman laut!';
+        } else if (!isHookDeepEnough) {
+          bottomHintText.innerHTML = '👇 Geser kail lebih dalam melewati <strong>garis batas kedalaman</strong>!';
+        } else {
+          bottomHintText.innerHTML = '✨ Kail siap! Sentuhkan ujung kail ke <strong>ikan bertanda tanya (?)</strong>!';
+        }
+      }
+
+      // Pembaruan rintangan laut (ubur-ubur & sepatu bot)
+      seaObstacles.forEach((obs) => {
+        obs.phase += 0.035;
+        obs.x += obs.vx;
+        obs.y = obs.baseY + Math.sin(obs.phase) * 14;
+
+        if (obs.x < 50) {
+          obs.x = 50;
+          obs.vx = Math.abs(obs.vx);
+        } else if (obs.x > canvasWidth - 50) {
+          obs.x = canvasWidth - 50;
+          obs.vx = -Math.abs(obs.vx);
+        }
+
+        if (!isStunned && isHookDeepEnough) {
+          const distObs = Math.hypot(hook.x - obs.x, hook.y - obs.y);
+          if (distObs < hook.radius + obs.radius) {
+            hookStunUntil = now + 1000;
+            hook.targetY = waterSurfaceY + 26;
+            sound.playZap();
+            spawnSplashParticles(hook.x, hook.y, '#fb7185', 14);
+          }
+        }
+      });
+
+      // Pembaruan 5 ikan tanda tanya
+      questionFishes.forEach((fish) => {
+        if (fish.caught) return;
+
+        fish.tailPhase += 0.15;
+        fish.bobPhase += fish.bobFreq;
+        fish.y = fish.baseY + Math.sin(fish.bobPhase) * fish.bobAmp;
+
+        const distToHook = Math.hypot(hook.x - fish.x, hook.y - fish.y);
+        const evadeRadius = 115 * fish.scale;
+        const speedMultiplier = (!isStunned && distToHook < evadeRadius) ? 1.24 : 1.0;
+
+        fish.x += fish.vx * speedMultiplier;
+
+        const margin = 65 * fish.scale;
+        if (fish.x < margin) {
+          fish.x = margin;
+          fish.vx = Math.abs(fish.baseSpeed);
+        } else if (fish.x > canvasWidth - margin) {
+          fish.x = canvasWidth - margin;
+          fish.vx = -Math.abs(fish.baseSpeed);
+        }
+
+        if (canCatchNow && distToHook < hook.radius + fish.radius * 0.92) {
+          onFishCaught(fish);
+        }
+      });
+    }
+
+    function drawSkyAndSun() {
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, waterSurfaceY);
+      skyGrad.addColorStop(0, '#38bdf8');
+      skyGrad.addColorStop(1, '#bae6fd');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, canvasWidth, waterSurfaceY + 12);
+
+      // Matahari tersenyum di pojok kiri atas
+      const sunX = Math.min(95, canvasWidth * 0.13);
+      const sunY = Math.min(72, waterSurfaceY * 0.42);
+      const sunR = Math.min(34, waterSurfaceY * 0.22);
+
+      ctx.save();
+      ctx.translate(sunX, sunY);
+
+      // Sinar matahari berputar perlahan
+      ctx.save();
+      ctx.rotate(timeTick * 0.2);
+      ctx.strokeStyle = 'rgba(253, 224, 71, 0.65)';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 12; i++) {
+        const a = (Math.PI * 2 * i) / 12;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * (sunR + 5), Math.sin(a) * (sunR + 5));
+        ctx.lineTo(Math.cos(a) * (sunR + 14), Math.sin(a) * (sunR + 14));
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath();
+      ctx.arc(0, 0, sunR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Wajah matahari tersenyum
+      ctx.fillStyle = '#92400e';
+      ctx.beginPath();
+      ctx.arc(-sunR * 0.3, -sunR * 0.12, 2.6, 0, Math.PI * 2);
+      ctx.arc(sunR * 0.3, -sunR * 0.12, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#92400e';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.arc(0, sunR * 0.08, sunR * 0.35, 0.15 * Math.PI, 0.85 * Math.PI);
+      ctx.stroke();
+      ctx.restore();
+
+      // Awan lembut
+      clouds.forEach((c) => {
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.scale(c.scale, c.scale);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.beginPath();
+        ctx.arc(0, 0, 22, 0, Math.PI * 2);
+        ctx.arc(20, -6, 26, 0, Math.PI * 2);
+        ctx.arc(44, 0, 21, 0, Math.PI * 2);
+        ctx.arc(22, 8, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    function drawOceanAndSeabed() {
+      // Gradasi air laut cerah
+      const seaGrad = ctx.createLinearGradient(0, waterSurfaceY, 0, canvasHeight);
+      seaGrad.addColorStop(0, '#0ea5e9');
+      seaGrad.addColorStop(0.55, '#0284c7');
+      seaGrad.addColorStop(1, '#0369a1');
+      ctx.fillStyle = seaGrad;
+      ctx.fillRect(0, waterSurfaceY, canvasWidth, canvasHeight - waterSurfaceY);
+
+      // Sinar cahaya matahari menembus air
+      ctx.save();
+      for (let i = 0; i < 4; i++) {
+        const rayX = canvasWidth * (0.2 + i * 0.22);
+        const rayGrad = ctx.createLinearGradient(rayX, waterSurfaceY, rayX + 40, canvasHeight * 0.85);
+        rayGrad.addColorStop(0, 'rgba(255, 255, 255, 0.14)');
+        rayGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = rayGrad;
+        ctx.beginPath();
+        ctx.moveTo(rayX - 25, waterSurfaceY);
+        ctx.lineTo(rayX + 35, waterSurfaceY);
+        ctx.lineTo(rayX + 110, canvasHeight * 0.85);
+        ctx.lineTo(rayX - 60, canvasHeight * 0.85);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // Ombak permukaan laut bergelombang
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.moveTo(0, waterSurfaceY);
+      for (let x = 0; x <= canvasWidth; x += 24) {
+        const waveY = waterSurfaceY + Math.sin(x * 0.025 + timeTick * 2.2) * 5;
+        ctx.lineTo(x, waveY);
+      }
+      ctx.lineTo(canvasWidth, waterSurfaceY + 18);
+      ctx.lineTo(0, waterSurfaceY + 18);
+      ctx.closePath();
+      ctx.fill();
+
+      // Garis batas kedalaman memancing
+      const thresholdY = waterSurfaceY + (canvasHeight - waterSurfaceY) * 0.33;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(253, 224, 71, 0.5)';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([10, 8]);
+      ctx.beginPath();
+      ctx.moveTo(16, thresholdY);
+      ctx.lineTo(canvasWidth - 16, thresholdY);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(254, 240, 138, 0.85)';
+      ctx.font = '700 12px Nunito, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('Zona Memancing Ikan ⬇', canvasWidth - 22, thresholdY - 6);
+      ctx.restore();
+
+      // Ikan-ikan kecil hiasan latar
+      bgFishes.forEach((bf) => {
+        ctx.save();
+        ctx.translate(bf.x, bf.y);
+        if (bf.speed < 0) ctx.scale(-1, 1);
+        ctx.fillStyle = bf.color;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, bf.size, bf.size * 0.55, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(-bf.size * 0.8, 0);
+        ctx.lineTo(-bf.size * 1.45, -bf.size * 0.5);
+        ctx.lineTo(-bf.size * 1.45, bf.size * 0.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Rumput laut bergoyang
+      seaweeds.forEach((sw) => {
+        ctx.save();
+        ctx.strokeStyle = sw.color;
+        ctx.lineWidth = 9;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        const baseY = canvasHeight - 22;
+        ctx.moveTo(sw.x, baseY);
+        const sway1 = Math.sin(timeTick * 1.8 + sw.phase) * 12;
+        const sway2 = Math.cos(timeTick * 1.5 + sw.phase) * 14;
+        ctx.quadraticCurveTo(sw.x + sway1, baseY - sw.height * 0.5, sw.x + sway2, baseY - sw.height);
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      // Terumbu karang warna-warni di dasar laut
+      const coralPositions = [0.16, 0.48, 0.82];
+      const coralColors = ['#fb7185', '#f472b6', '#fbbf24'];
+      coralPositions.forEach((ratio, idx) => {
+        const cx = canvasWidth * ratio;
+        const cy = canvasHeight - 24;
+        ctx.save();
+        ctx.fillStyle = coralColors[idx];
+        ctx.beginPath();
+        ctx.arc(cx, cy, 18, Math.PI, 0);
+        ctx.arc(cx - 14, cy + 2, 12, Math.PI, 0);
+        ctx.arc(cx + 15, cy + 2, 13, Math.PI, 0);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Dasar pasir laut
+      const sandGrad = ctx.createLinearGradient(0, canvasHeight - 36, 0, canvasHeight);
+      sandGrad.addColorStop(0, '#fde047');
+      sandGrad.addColorStop(1, '#eab308');
+      ctx.fillStyle = sandGrad;
+      ctx.beginPath();
+      ctx.moveTo(0, canvasHeight - 24);
+      for (let x = 0; x <= canvasWidth; x += 40) {
+        ctx.lineTo(x, canvasHeight - 24 + Math.sin(x * 0.02) * 5);
+      }
+      ctx.lineTo(canvasWidth, canvasHeight);
+      ctx.lineTo(0, canvasHeight);
+      ctx.closePath();
+      ctx.fill();
+
+      // Gelembung udara naik
+      bubbles.forEach((b) => {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
+
+    function drawBoatAndHook() {
+      const bx = boat.x;
+      const by = boat.y;
+      const rodTipX = bx + 54;
+      const rodTipY = by - 54;
+
+      // Tali pancing dari ujung joran ke kail
+      ctx.save();
+      ctx.strokeStyle = '#f8fafc';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(rodTipX, rodTipY);
+      ctx.quadraticCurveTo((rodTipX + hook.x) * 0.5, (rodTipY + hook.y) * 0.5 + 10, hook.x, hook.y - 12);
+      ctx.stroke();
+      ctx.restore();
+
+      // Perahu kayu ceria
+      ctx.save();
+      ctx.translate(bx, by);
+
+      // Badan pemancing cilik
+      ctx.fillStyle = '#f97316';
+      ctx.beginPath();
+      ctx.roundRect(-14, -34, 24, 24, 8);
+      ctx.fill();
+
+      // Kepala & topi nelayan
+      ctx.fillStyle = '#fed7aa';
+      ctx.beginPath();
+      ctx.arc(-2, -44, 11, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#facc15';
+      ctx.beginPath();
+      ctx.ellipse(-2, -52, 16, 4.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(-2, -53, 9, Math.PI, 0);
+      ctx.fill();
+
+      // Mata pemancing
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(2, -44, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Joran pancing
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 4.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(6, -24);
+      ctx.lineTo(54, -54);
+      ctx.stroke();
+
+      // Lambung perahu
+      ctx.fillStyle = '#b45309';
+      ctx.beginPath();
+      ctx.moveTo(-48, -10);
+      ctx.lineTo(48, -10);
+      ctx.lineTo(34, 12);
+      ctx.lineTo(-34, 12);
+      ctx.closePath();
+      ctx.fill();
+
+      // Lis perahu merah-kuning cerah
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(-45, -10, 90, 6);
+      ctx.restore();
+
+      // Kail Pancing
+      const isStunned = performance.now() < hookStunUntil;
+      ctx.save();
+      ctx.translate(hook.x, hook.y);
+
+      if (isStunned) {
+        ctx.fillStyle = 'rgba(251, 113, 133, 0.35)';
+        ctx.beginPath();
+        ctx.arc(0, 0, hook.radius + 8, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+        ctx.beginPath();
+        ctx.arc(0, 0, hook.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Cincin & batang kail logam
+      ctx.strokeStyle = isStunned ? '#fb7185' : '#e2e8f0';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(0, -11, 4, 0, Math.PI * 2);
+      ctx.moveTo(0, -7);
+      ctx.lineTo(0, 8);
+      ctx.arc(-6, 8, 6, 0, Math.PI, false);
+      ctx.lineTo(-12, 3);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawSeaObstacles() {
+      seaObstacles.forEach((obs) => {
+        ctx.save();
+        ctx.translate(obs.x, obs.y);
+
+        if (obs.type === 'jellyfish') {
+          // Ubur-ubur ungu ceria
+          ctx.fillStyle = 'rgba(216, 180, 254, 0.88)';
+          ctx.beginPath();
+          ctx.arc(0, -2, 20, Math.PI, 0);
+          ctx.quadraticCurveTo(20, 6, 10, 6);
+          ctx.quadraticCurveTo(0, 2, -10, 6);
+          ctx.quadraticCurveTo(-20, 6, -20, -2);
+          ctx.fill();
+
+          // Tentakel ubur-ubur
+          ctx.strokeStyle = '#c084fc';
+          ctx.lineWidth = 2.8;
+          ctx.lineCap = 'round';
+          for (let t = -12; t <= 12; t += 8) {
+            ctx.beginPath();
+            ctx.moveTo(t, 5);
+            ctx.quadraticCurveTo(t + Math.sin(timeTick * 4 + t) * 5, 14, t, 22);
+            ctx.stroke();
+          }
+
+          // Mata lucu
+          ctx.fillStyle = '#3b0764';
+          ctx.beginPath();
+          ctx.arc(-6, -5, 2.2, 0, Math.PI * 2);
+          ctx.arc(6, -5, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Sepatu bot tua cokelat
+          ctx.rotate(Math.sin(obs.phase) * 0.18);
+          ctx.fillStyle = '#78350f';
+          ctx.beginPath();
+          ctx.roundRect(-10, -18, 16, 26, 4);
+          ctx.roundRect(-10, 0, 28, 13, 6);
+          ctx.fill();
+
+          ctx.fillStyle = '#92400e';
+          ctx.fillRect(-10, -18, 16, 5);
+        }
+
+        ctx.restore();
+      });
+    }
+
+    function drawQuestionFish(fish) {
+      if (fish.caught) return;
+
+      const facingLeft = fish.vx < 0;
+      const tailWag = Math.sin(fish.tailPhase) * 7;
+
+      ctx.save();
+      ctx.translate(fish.x, fish.y);
+      ctx.scale(fish.scale, fish.scale);
+
+      // Gambar tubuh ikan (dibalik horizontal jika berenang ke kiri)
+      ctx.save();
+      if (facingLeft) ctx.scale(-1, 1);
+
+      // Ekor ikan
+      ctx.fillStyle = fish.palette.fin;
+      ctx.beginPath();
+      ctx.moveTo(-28, 0);
+      ctx.lineTo(-48, -16 + tailWag);
+      ctx.lineTo(-43, 0);
+      ctx.lineTo(-48, 16 + tailWag);
+      ctx.closePath();
+      ctx.fill();
+
+      // Sirip punggung & perut
+      ctx.fillStyle = fish.palette.fin;
+      ctx.beginPath();
+      ctx.moveTo(-8, -20);
+      ctx.quadraticCurveTo(4, -34, 14, -18);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(-6, 19);
+      ctx.quadraticCurveTo(2, 31, 12, 18);
+      ctx.closePath();
+      ctx.fill();
+
+      // Badan utama ikan
+      ctx.fillStyle = fish.palette.body;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 34, 23, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Perut cerah
+      ctx.fillStyle = fish.palette.belly;
+      ctx.beginPath();
+      ctx.ellipse(3, 7, 24, 11, 0, 0, Math.PI);
+      ctx.fill();
+
+      // Mata ikan
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(20, -6, 6.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(21.5, -6, 3.1, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Senyum kecil
+      ctx.strokeStyle = '#7c2d12';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(24, 3, 5, 0.15 * Math.PI, 0.8 * Math.PI);
+      ctx.stroke();
+
+      ctx.restore();
+
+      // Lencana tanda tanya (?) selalu tegak & jelas di tengah badan ikan
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(facingLeft ? 4 : -4, 0, 14.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#dc2626';
+      ctx.font = '900 20px Fredoka, Nunito, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('?', facingLeft ? 4 : -4, 1);
+
+      ctx.restore();
+    }
+
+    function drawParticles() {
+      particles.forEach((p) => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+      drawSkyAndSun();
+      drawOceanAndSeabed();
+      drawSeaObstacles();
+      questionFishes.forEach((fish) => drawQuestionFish(fish));
+      drawBoatAndHook();
+      drawParticles();
+    }
+
+    function gameLoop() {
+      update();
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    /**
+     * ============================================================================
+     * INISIALISASI SAAT HALAMAN DIMUAT
+     * ============================================================================
+     */
+    window.addEventListener('resize', resizeCanvas);
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => resizeCanvas());
+      ro.observe(canvasWrapper);
+    }
+
+    window.addEventListener('load', () => {
+      resizeCanvas();
+      spawnQuestionFishes(5);
+      spawnSeaObstacles();
+      gameLoop();
+    });
+  </script>
+</body>
+</html>
